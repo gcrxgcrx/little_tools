@@ -305,6 +305,9 @@ async function main() {
     // 升级请求也要鉴权（cookie 会随升级请求带上）
     const fakeReq = { headers: req.headers, socket, ip: req.socket.remoteAddress, query: {} };
     if (!auth.authorize(fakeReq)) {
+      // 会话失效（比如服务端刚重启过）就会走到这里。必须留日志，
+      // 否则「手机连不上」在服务端日志里完全看不出任何痕迹。
+      log(`拒绝 WebSocket 升级（会话无效）: ${req.socket.remoteAddress}`);
       socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
       socket.destroy();
       return;

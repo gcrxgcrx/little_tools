@@ -177,6 +177,10 @@ function connect() {
 
   ws.onopen = () => {
     reconnectDelay = 1000;
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
     setConn('已连接', 'on');
   };
 
@@ -192,11 +196,44 @@ function connect() {
 
   ws.onclose = () => {
     setConn('已断开，重连中…', 'off');
-    setTimeout(connect, reconnectDelay);
-    reconnectDelay = Math.min(reconnectDelay * 2, 15000);
+    scheduleReconnect();
   };
 
   ws.onerror = () => {};
+}
+
+let reconnectTimer = null;
+
+/**
+ * 断线重连。
+ *
+ * 关键：服务端每次重启都会清空会话令牌（令牌只存在内存里）。
+ * 如果这里只是无脑重连，页面会永远停在"已断开，重连中…" ——
+ * 用户根本没有机会重新输入访问码，表现就是"突然连不上了"。
+ * 所以重连之前先问一次会话是否仍然有效，无效就直接弹登录框。
+ */
+async function scheduleReconnect() {
+  if (reconnectTimer) return;
+
+  let authorized = true;
+  try {
+    const session = await fetchJson('/api/session');
+    authorized = Boolean(session && session.authorized);
+  } catch {
+    // 服务端还没起来（或网络不通），继续按退避重试
+  }
+
+  if (!authorized) {
+    setConn('会话已过期，请重新输入访问码', 'off');
+    showLogin();
+    return;
+  }
+
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connect();
+  }, reconnectDelay);
+  reconnectDelay = Math.min(reconnectDelay * 2, 15000);
 }
 
 function handleMessage(msg) {

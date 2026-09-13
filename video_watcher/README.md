@@ -103,6 +103,10 @@
   「分享系统音频」选项；而且整屏采集走的是桌面复制通道，帧率上限更高。
 - 游戏尽量**独占全屏**，窗口模式在部分机器上采集帧率会明显偏低。
 - 本机同时开着下载、网盘同步等上传任务时，上行会被抢走，指标里的「受限：带宽不足」会立刻出现。
+- **分辨率和帧率是一对矛盾**，码率给不够时必须牺牲一个：
+  默认的「均衡/流畅」是保帧率（宁可画面糊一点也不卡顿），
+  画面内容变化越剧烈（游戏、动作片、全屏渐变）编码越吃力，分辨率就越容易被压低 ——
+  这是正常的，看指标里的分辨率和码率就知道。文字内容请改用「清晰」预设。
 - 基准线可调：`rtc.frameRate`（默认 60）、`rtc.maxBitrateMbps`（默认 8）、
   `rtc.degradationPreference`（默认 `maintain-framerate`，即保帧率）。
 
@@ -339,11 +343,42 @@ powershell -ExecutionPolicy Bypass -File tools\set-pin.ps1 -Pin 826413 -NoRestar
 
 三种地基，按推荐顺序（详见 PLAN.md §3.0）：
 
-| 地基 | 她需要做什么 | 成本 |
-|---|---|---|
-| ① 公网直连 + 域名证书 | 点一个 `https://` 链接 | 域名 ¥0–100/年 |
-| ② Tailscale | 装一次 App | ¥0 |
-| ③ WebRTC 推流 + 二维码 | 扫码 | 需改架构，开发量 3–5 倍 |
+服务默认只监听局域网。**手机用流量（或对方在外地）是访问不到的** ——
+`192.168.x.x` 是私有地址，只在你自己家的路由器内部有效。异地观看必须先解决"怎么连到你家这台电脑"。
+
+| 方案 | 对方需要做什么 | 成本 | 备注 |
+|---|---|---|---|
+| ① **Tailscale**（推荐先试） | 装一次 App | ¥0 | 不用公网 IP、不用端口转发、不用证书，还能白拿 HTTPS |
+| ② 公网直连 + 域名证书 | 点一个 `https://` 链接 | 域名 ¥0–100/年 | 需要路由器端口转发，服务会暴露在公网（靠访问码保护） |
+| ③ WebRTC 推流 + 二维码 | 扫码 | 需改架构，开发量 3–5 倍 | 前两条都不通时的兜底 |
+
+### 方案①：Tailscale（最省事，建议先试这条）
+
+Tailscale 把两台设备放进同一个加密虚拟局域网（WireGuard，端到端加密，中继只转发密文），
+之后用起来和同一 WiFi 完全一样，而且**不需要**公网 IP、端口转发、域名或证书。
+
+**下载（国内可直连，不需要梯子）**：
+
+- Windows：<https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe>
+- **Android：<https://pkgs.tailscale.com/stable/tailscale-android-universal-latest.apk>**
+  —— 官方提供通用 APK，不需要 Google Play，下载后直接安装即可
+- iOS：在 App Store 搜 Tailscale（注意：**中国区 App Store 没有这个 App**）
+
+**步骤**：
+
+1. 电脑装好并登录，手机装好并登录（**用同一个账号**，设备会自动进入同一个 tailnet）
+2. 在电脑上执行 `tailscale serve 8080`
+3. 手机会得到一个 `https://<机器名>.<你的tailnet>.ts.net` 地址，用它访问即可
+
+第 2 步很值得做：它会自动签发受信任的 HTTPS 证书，于是手机端就是**安全上下文**，
+从而解锁两件在普通 HTTP 下做不到的事 ——
+
+- 手机播放时的**屏幕常亮**（Wake Lock），否则看片中途屏幕会自动熄灭、播放中断
+- **手机也能共享屏幕**；另外任何设备都能共享屏幕，不再局限于在电脑上用 localhost 打开
+
+> 关于打洞：Tailscale 在部分国内网络下的 UDP 打洞可能被劣化，从而退化成走中继。
+> 判断方法：电脑上执行 `tailscale ping <对方设备名>`，如果显示 `direct` 就是直连，
+> 显示 `relay` 就是走了中继。实测下来再用，必要时可以自建中继。
 
 **无论用哪种，都先用这个地址验证连通性**（不需要 PIN）：
 
@@ -633,6 +668,7 @@ tools/
   test-browser.js  真实浏览器端到端测试（两个独立上下文，一台伪装 iPhone）
   test-hevc-patch.js  hev1 传输改写验证
   test-power-api.js  关机 API 隔离测试
+  test-reconnect.js  服务端重启后的重连与会话过期处理
   test-admin-api.js  控制台 API 隔离测试（用独立配置副本与独立任务名）
   test-screen-share.js 屏幕共享端到端测试（canvas 流注入，覆盖建连与收帧）
   check-browser-caps.js 浏览器能力探测（安全上下文 / 屏幕采集 / WebRTC）
