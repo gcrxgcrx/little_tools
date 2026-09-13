@@ -58,7 +58,11 @@
    页面上会出现一条提示条「**电脑 正在共享屏幕**」+「观看」按钮，
    **不需要先选片子**，在片库页就能看到。点「观看」即进入全屏画面。
 
-手机上的样子：片库列表上方会冒出一条粉蓝渐变的提示条（**不需要先选片子**），
+| 手机上看到提示条 | 点「观看」后的画面 |
+|---|---|
+| ![共享提示](docs/screenshots/10-share-bar-mobile.png) | ![共享画面](docs/screenshots/12-share-stage-sound-mobile.png) |
+
+片库列表上方会冒出一条粉蓝渐变的提示条（**不需要先选片子**），
 点「观看」后进入全屏画面层，右下角有「声音」「全屏」「关闭」三个按钮。
 
 ### 画质与帧率
@@ -133,17 +137,16 @@
 
 片库、播放器、控制台三套页面共用同一套浅色主题，手机优先。
 
-想看自己的界面长什么样，运行：
+| 片库（手机） | 播放器（手机） |
+|---|---|
+| ![片库](docs/screenshots/05-library-mobile.png) | ![播放器](docs/screenshots/07-player-mobile.png) |
 
-```powershell
-node tools/screenshot.js
-```
+| 控制台（手机） | 登录 | 片库（桌面） |
+|---|---|---|
+| ![控制台](docs/screenshots/09-admin-mobile.png) | ![登录](docs/screenshots/04-login-mobile.png) | ![桌面](docs/screenshots/02-library-desktop.png) |
 
-它用系统 Edge 无头渲染，把片库、播放器、控制台在桌面与手机两种视口下各拍一张，
-输出到 `docs/screenshots/`。改了样式之后重新跑一次就能核对效果，不用靠想象。
-
-> **仓库里刻意不含截图** —— 截图会带上你自己的片库内容和访问码。
-> 上面这条命令生成的图只留在你本机（`docs/` 已在 `.gitignore` 里）。
+> 仓库里的截图用的是**合成的演示片库** —— `node tools/make-demo-clips.js` 用 canvas 动画
+> 录成的真实 MP4，不含任何个人内容。想看你自己的界面，运行 `node tools/screenshot.js`。
 
 ---
 

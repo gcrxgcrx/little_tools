@@ -7,5 +7,5 @@ Thumbs.db
 # 本机真实配置（含访问码与自己的片源路径），不进版本库
 config.json
 
-# 界面截图由 tools/screenshot.js 在本机生成，可能包含片库内容，不进版本库
-docs/
+# docs/screenshots 里的图是用合成演示片库生成的，可以进仓库。
+# 注意：你自己跑 tools/screenshot.js 会覆盖它们，别把真实片库的截图提交上去。
