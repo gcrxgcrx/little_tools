@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#fbfcff" />
+    <link rel="icon" href="data:," />
+    <title>观影室</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <!-- 访问码 -->
+    <div id="login" class="overlay hidden">
+      <div class="card">
+        <h1>观影室</h1>
+        <p class="muted">输入电脑上显示的访问码</p>
+        <input id="pinInput" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="______" />
+        <button id="pinBtn" class="primary">进入</button>
+        <p id="pinError" class="error"></p>
+      </div>
+    </div>
+
+    <div id="app" class="app">
+      <header class="topbar">
+        <button id="backBtn" class="ghost hidden">‹ 片库</button>
+        <span id="title" class="title">片库</span>
+        <button id="shareBtn" class="ghost small">共享屏幕</button>
+        <a id="adminLink" class="ghost small adminLink" href="/admin.html">控制台</a>
+        <span id="conn" class="conn">连接中…</span>
+      </header>
+
+      <!-- 共享提示条放在最外层：这样无论在片库还是播放页、有没有选片，都能看到 -->
+      <div id="shareBar" class="notice share hidden">
+        <span id="shareText"></span>
+        <span class="shareActions">
+          <button id="shareWatchBtn" class="ghost small hidden">观看</button>
+          <button id="shareStopBtn" class="ghost small hidden">结束共享</button>
+        </span>
+      </div>
+
+      <!-- 片库 -->
+      <section id="libraryView" class="view">
+        <div class="libbar">
+          <span id="libStatus" class="muted small">读取中…</span>
+          <button id="rescanBtn" class="ghost small">重新扫描</button>
+        </div>
+        <div id="libList" class="libList"></div>
+      </section>
+
+      <!-- 播放器 -->
+      <section id="playerView" class="view hidden">
+        <div class="stage">
+          <video id="video" playsinline webkit-playsinline preload="auto"></video>
+          <div id="unlock" class="unlockOverlay hidden">
+            <div class="unlockText">轻触开始<br /><span class="muted small">iOS 需要一次点击才能播放声音</span></div>
+          </div>
+          <div id="countdown" class="countdown hidden"></div>
+          <div id="holdBanner" class="holdBanner hidden"></div>
+        </div>
+
+        <div class="controls">
+          <input id="seek" class="seek" type="range" min="0" max="1000" value="0" step="1" />
+          <div class="buttons">
+            <button id="back10" class="ghost">−10s</button>
+            <button id="playBtn" class="primary round">▶</button>
+            <button id="fwd10" class="ghost">+10s</button>
+            <span id="timeLabel" class="timeLabel">0:00 / 0:00</span>
+            <button id="fsBtn" class="ghost">全屏</button>
+          </div>
+          <div class="buttons secondary">
+            <button id="localBtn" class="ghost small">用本地文件播放</button>
+            <button id="downloadBtn" class="ghost small">提前下载整片</button>
+          </div>
+          <div class="buttons secondary">
+            <button id="restartBtn" class="ghost small">从头播放</button>
+            <button id="powerBtn" class="ghost small">播完关机：关</button>
+          </div>
+          <input id="localFile" type="file" accept="video/*" class="hidden" />
+        </div>
+
+        <div id="resumeNotice" class="notice hidden">
+          <span id="resumeText"></span>
+          <button id="resumeDismiss" class="ghost small">知道了</button>
+        </div>
+
+        <div id="powerNotice" class="notice danger hidden">
+          <span id="powerText"></span>
+          <button id="powerCancel" class="ghost small">取消关机</button>
+        </div>
+
+        <div id="hud" class="hud"></div>
+      </section>
+    </div>
+
+    <div id="shareStage" class="shareStage hidden">
+      <video id="shareVideo" playsinline webkit-playsinline autoplay muted></video>
+      <div id="shareHint" class="shareHint">等待共享画面…</div>
+      <div class="shareStageBar">
+        <span id="shareStageText">屏幕共享</span>
+        <span class="shareActions">
+          <button id="shareSoundBtn" class="ghost small hidden">开启声音</button>
+          <button id="shareStageFs" class="ghost small">全屏</button>
+          <button id="shareClose" class="ghost small">关闭</button>
+        </span>
+      </div>
+    </div>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

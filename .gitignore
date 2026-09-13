@@ -1,0 +1,11 @@
+node_modules/
+data/
+*.log
+.DS_Store
+Thumbs.db
+
+# 本机真实配置（含访问码与自己的片源路径），不进版本库
+config.json
+
+# 界面截图由 tools/screenshot.js 在本机生成，可能包含片库内容，不进版本库
+docs/

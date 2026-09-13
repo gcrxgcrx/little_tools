@@ -1,0 +1,70 @@
+{
+  "port": 8080,
+  "bind": "0.0.0.0",
+  "pin": "",
+  "roots": [
+    "D:\\Movies"
+  ],
+  "excludeDirs": [
+    "$RECYCLE.BIN",
+    "System Volume Information",
+    "node_modules",
+    ".git",
+    "@eaDir"
+  ],
+  "maxDepth": 5,
+  "videoExtensions": [
+    ".mp4",
+    ".m4v",
+    ".mov",
+    ".mkv",
+    ".webm",
+    ".avi",
+    ".ts"
+  ],
+  "playableExtensions": [
+    ".mp4",
+    ".m4v",
+    ".mov",
+    ".webm"
+  ],
+  "patchHevcOnServe": true,
+  "autoPlayNext": true,
+  "autoPlayNextCountdownMs": 6000,
+  "clientBufferAheadSec": 25,
+  "minBufferAheadSec": 5,
+  "adaptiveBuffer": true,
+  "bufferWaitTimeoutSec": 90,
+  "bufferingGraceMs": 400,
+  "bufferingResumeCountdownMs": 1200,
+  "resume": {
+    "enabled": true,
+    "rewindSec": 5,
+    "minPositionSec": 30,
+    "endThresholdSec": 90,
+    "saveIntervalSec": 10
+  },
+  "power": {
+    "enableShutdown": true,
+    "delaySec": 120,
+    "onPlaylistEnd": true,
+    "onEmptyRoomSec": 300
+  },
+  "iosLazySeek": {
+    "thresholdMs": 200,
+    "minIntervalSec": 120
+  },
+  "desktopRateNudge": {
+    "deadZoneMs": 60,
+    "hardSeekMs": 800,
+    "gain": 0.5,
+    "rateClamp": 0.04
+  },
+  "trustedTailscaleLogins": [],
+  "rtc": {
+    "iceServers": [],
+    "frameRate": 60,
+    "maxBitrateMbps": 8,
+    "degradationPreference": "maintain-resolution"
+  }
+}

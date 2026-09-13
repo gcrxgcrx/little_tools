@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#fbfcff" />
+    <link rel="icon" href="data:," />
+    <title>观影室 · 控制台</title>
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/admin.css" />
+  </head>
+  <body>
+    <div id="login" class="overlay hidden">
+      <div class="card">
+        <h1>控制台</h1>
+        <p class="muted">输入访问码</p>
+        <input id="pinInput" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="______" />
+        <button id="pinBtn" class="primary">进入</button>
+        <p id="pinError" class="error"></p>
+      </div>
+    </div>
+
+    <div class="admin">
+      <header class="topbar">
+        <span class="title">观影室 · 控制台</span>
+        <a class="ghost small linkbtn" href="/">去片库</a>
+        <button id="refreshBtn" class="ghost small">刷新</button>
+      </header>
+
+      <main class="adminMain">
+        <section class="panel">
+          <h2>服务</h2>
+          <div id="serviceGrid" class="kv"></div>
+        </section>
+
+        <section class="panel">
+          <h2>访问码</h2>
+          <div class="row-inline">
+            <code id="currentPin" class="pin">------</code>
+            <button id="copyPinBtn" class="ghost small">复制</button>
+          </div>
+          <div class="row-inline">
+            <input id="newPin" inputmode="numeric" maxlength="12" placeholder="新的 4–12 位数字" />
+            <button id="setPinBtn" class="primary small">修改</button>
+            <button id="randomPinBtn" class="ghost small">随机生成</button>
+          </div>
+          <p id="pinMsg" class="msg"></p>
+          <p class="note">改完立即生效，其他设备需要重新输入。当前设备会自动保持登录。</p>
+        </section>
+
+        <section class="panel">
+          <h2>片库</h2>
+          <div id="libraryGrid" class="kv"></div>
+          <div class="row-inline">
+            <button id="rescanBtn" class="ghost small">重新扫描</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>访问地址</h2>
+          <div id="urlList" class="urlList"></div>
+          <p class="note">手机连同一个 WiFi 时用局域网地址。异地需要先配好端口转发或 Tailscale。</p>
+        </section>
+
+        <section class="panel">
+          <h2>开机自启</h2>
+          <div id="autostartGrid" class="kv"></div>
+          <div class="row-inline">
+            <button id="autostartOnBtn" class="ghost small">注册</button>
+            <button id="autostartOffBtn" class="ghost small">移除</button>
+          </div>
+          <p class="note">
+            这里注册的是「登录时启动」。要在没人登录时也能起，需要用管理员权限运行
+            <code>tools\install-autostart.ps1 -Mode Boot</code>。
+          </p>
+        </section>
+
+        <section class="panel">
+          <h2>播完关机</h2>
+          <div id="powerGrid" class="kv"></div>
+          <div class="row-inline">
+            <button id="powerArmBtn" class="ghost small">开启</button>
+            <button id="powerCancelBtn" class="ghost small">取消待执行</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>观看断点</h2>
+          <div id="progressGrid" class="kv"></div>
+          <div class="row-inline">
+            <button id="clearProgressBtn" class="ghost small">清空全部断点</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>日志（data\server.log 末尾）</h2>
+          <div class="row-inline">
+            <button id="logRefreshBtn" class="ghost small">刷新日志</button>
+          </div>
+          <pre id="logBox" class="log">加载中…</pre>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/admin.js"></script>
+  </body>
+</html>

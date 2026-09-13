@@ -1,0 +1,22 @@
+{
+  "name": "video-watcher",
+  "version": "1.0.0",
+  "private": true,
+  "description": "异地同步观影室 — 自建片库 + 权威时间轴同步，内容不经第三方",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "scan": "node src/scan-cli.js",
+    "probe": "node src/probe-cli.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.10.0"
+  }
+}
