@@ -30,6 +30,9 @@
         <span id="conn" class="conn">连接中…</span>
       </header>
 
+      <!-- 短暂提示：对方换片 / 跳进度时冒一下 -->
+      <div id="toast" class="toast hidden"></div>
+
       <!-- 共享提示条放在最外层：这样无论在片库还是播放页、有没有选片，都能看到 -->
       <div id="shareBar" class="notice share hidden">
         <span id="shareText"></span>
@@ -97,12 +100,21 @@
       <video id="shareVideo" playsinline webkit-playsinline autoplay muted></video>
       <div id="shareHint" class="shareHint">等待共享画面…</div>
       <div class="shareStageBar">
-        <span id="shareStageText">屏幕共享</span>
-        <span class="shareActions">
-          <button id="shareSoundBtn" class="ghost small hidden">开启声音</button>
-          <button id="shareStageFs" class="ghost small">全屏</button>
-          <button id="shareClose" class="ghost small">关闭</button>
-        </span>
+        <div class="shareBarTop">
+          <span id="shareStageText">屏幕共享</span>
+          <span class="shareActions">
+            <button id="shareSoundBtn" class="ghost small hidden">开启声音</button>
+            <button id="shareStageFs" class="ghost small">全屏</button>
+            <button id="shareClose" class="ghost small">关闭</button>
+          </span>
+        </div>
+        <div id="shareStats" class="shareStats">—</div>
+        <div id="sharePresets" class="sharePresets hidden">
+          <span class="sharePresetsLabel">画质</span>
+          <button data-preset="smooth" class="ghost small">流畅</button>
+          <button data-preset="balanced" class="ghost small">均衡</button>
+          <button data-preset="sharp" class="ghost small">清晰</button>
+        </div>
       </div>
     </div>
 

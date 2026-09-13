@@ -255,6 +255,65 @@ button.unavailable {
 }
 
 /* 共享提示条是最外层元素，要跟内容区同宽居中 */
+/* 共享画面底部的实时指标与画质预设 */
+.shareStageBar {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.shareBarTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.shareStats {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.sharePresets {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sharePresetsLabel {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* 短暂提示条：顶部居中的小胶囊，几秒后自己消失 */
+.toast {
+  position: fixed;
+  top: calc(58px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 70;
+  max-width: min(92vw, 460px);
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(43, 52, 69, 0.92);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+  box-shadow: 0 6px 24px rgba(43, 52, 69, 0.28);
+  animation: toastIn 0.18s ease-out;
+  pointer-events: none;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 .notice.share {
   max-width: 760px;
   width: 100%;

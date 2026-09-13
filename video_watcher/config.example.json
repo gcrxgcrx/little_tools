@@ -65,6 +65,6 @@
     "iceServers": [],
     "frameRate": 60,
     "maxBitrateMbps": 8,
-    "degradationPreference": "maintain-resolution"
+    "degradationPreference": "maintain-framerate"
   }
 }

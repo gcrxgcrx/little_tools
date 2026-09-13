@@ -207,6 +207,9 @@ class Room {
    * @param {object} [options]
    * @param {boolean} [options.autoStart] 切完自动开始（用于连播）
    * @param {number}  [options.countdownMs] 自动开始时先倒数多久
+   * @param {string}  [options.by] 发起换片的客户端 id
+   * @param {number}  [options.startPos] 起始位置（断点续播）
+   * @param {number}  [options.savedPositionSec] 断点原始位置
    */
   setMedia(mediaId, durationSec, options = {}) {
     this.mediaId = mediaId;
@@ -229,7 +232,13 @@ class Room {
       this.anchorServerMs = this.now();
     }
 
-    this.emit({ action: 'set-media', autoStart: Boolean(options.autoStart) });
+    // by 用于告诉其他客户端"是谁换的片"，以便在对方界面上给出提示；
+    // 自动连播时没有 by，属于系统行为，不需要提示。
+    this.emit({
+      action: 'set-media',
+      by: options.by || null,
+      autoStart: Boolean(options.autoStart),
+    });
   }
 
   applyIntent(clientId, action, pos, durationSec) {

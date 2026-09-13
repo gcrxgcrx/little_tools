@@ -46,7 +46,7 @@ class TestClient {
       this.ws.on('message', (raw) => {
         const msg = JSON.parse(String(raw));
         if (msg.t === 'welcome') this.welcome = msg;
-        if (msg.t === 'state') this.states.push({ at: Date.now(), state: msg.state });
+        if (msg.t === 'state') this.states.push({ at: Date.now(), state: msg.state, meta: msg.meta });
         if (msg.t === 'pong') this.pongs.push({ at: Date.now(), ...msg });
       });
     });
@@ -58,6 +58,10 @@ class TestClient {
 
   latest() {
     return this.states.length ? this.states[this.states.length - 1].state : null;
+  }
+
+  latestMeta() {
+    return this.states.length ? this.states[this.states.length - 1].meta : null;
   }
 
   clear() {
@@ -190,6 +194,14 @@ async function main() {
   const loadedByB = await b.waitFor((s) => s.mediaId === media.id);
   check('B 收到选片状态', Boolean(loadedByB), `mediaId=${loadedByB?.mediaId}`);
   check('初始为暂停', loadedByB?.playing === false);
+
+  // 客户端要靠这个 meta 才知道"是对方换了片"，从而给出提示
+  const loadMeta = b.states.map((s) => s.meta).filter(Boolean).pop();
+  check(
+    '状态里带上了操作者，客户端据此提示「对方切到了 X」',
+    Boolean(loadMeta && loadMeta.action === 'set-media' && loadMeta.by === a.welcome?.clientId),
+    `action=${loadMeta?.action} by=${loadMeta?.by}`
+  );
 
   console.log('\n4) 播放意图 → 双方同步推进');
   a.clear();

@@ -210,17 +210,21 @@ async function main() {
       canvas.height = 540;
       const ctx = canvas.getContext('2d');
       let n = 0;
-      setInterval(() => {
+      // 用 rAF 驱动，源就是 60fps；用 setInterval(100ms) 的话源只有 10fps，
+      // 截图底部会显示 "接收 10 fps"，看起来像链路不行
+      const draw = () => {
         n += 1;
         const g = ctx.createLinearGradient(0, 0, 960, 540);
-        g.addColorStop(0, `hsl(${(n * 4) % 360} 65% 60%)`);
-        g.addColorStop(1, `hsl(${(n * 4 + 60) % 360} 65% 45%)`);
+        g.addColorStop(0, `hsl(${(n * 2) % 360} 65% 60%)`);
+        g.addColorStop(1, `hsl(${(n * 2 + 60) % 360} 65% 45%)`);
         ctx.fillStyle = g;
         ctx.fillRect(0, 0, 960, 540);
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 54px sans-serif';
         ctx.fillText('电脑屏幕共享中', 60, 300);
-      }, 100);
+        requestAnimationFrame(draw);
+      };
+      draw();
 
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       const ac = new AudioCtx();
@@ -233,12 +237,13 @@ async function main() {
       osc.start();
 
       const stream = new MediaStream([
-        ...canvas.captureStream(30).getVideoTracks(),
+        ...canvas.captureStream(60).getVideoTracks(),
         ...dest.stream.getAudioTracks(),
       ]);
       window.__vw.startShareWithStream(stream);
     });
-    await sleep(1800);
+    // 等带宽估计爬升到稳态，否则截图里的帧率/分辨率都是爬升期的低值
+    await sleep(7000);
 
     // 手机回到片库页，验证"没选片也能看到共享提示"
     await phone.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -247,7 +252,7 @@ async function main() {
     await shoot(phone, '10-share-bar-mobile');
 
     await phone.evaluate(() => document.getElementById('shareWatchBtn').click());
-    await sleep(2200);
+    await sleep(7000);
     await shoot(phone, '11-share-stage-mobile');
 
     // 再拍一张声音已打开的（点「观看」时应该已经在手势里解除了静音）

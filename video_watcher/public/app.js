@@ -49,6 +49,9 @@ const dom = {
   shareStageFs: $('shareStageFs'),
   shareSoundBtn: $('shareSoundBtn'),
   shareClose: $('shareClose'),
+  shareStats: $('shareStats'),
+  sharePresets: $('sharePresets'),
+  toast: $('toast'),
   hud: $('hud'),
 };
 
@@ -233,6 +236,7 @@ function handleMessage(msg) {
       maybeShowResumeNotice(msg.state);
       updatePowerNotice();
       updateSharing(msg.state);
+      handleRemoteHint(msg.state, msg.meta);
       break;
     case 'pong':
       if (sync) sync.onPong(msg);
@@ -523,6 +527,78 @@ function updatePowerNotice() {
       ? `将在 ${Math.ceil(remainMs / 1000)} 秒后关机（${power.reason || ''}）`
       : '正在关机…';
   dom.powerNotice.classList.remove('hidden');
+}
+
+// —— 共享画面的实时指标与画质预设 ——
+
+function renderShareStats(stats) {
+  if (!dom.shareStats) return;
+  const parts = [];
+
+  if (stats.presenter) {
+    const p = stats.presenter;
+    parts.push(`发送 ${p.fps} fps`);
+    if (p.width) parts.push(`${p.width}×${p.height}`);
+    if (p.bitrateMbps != null) parts.push(`${p.bitrateMbps.toFixed(1)} Mbps`);
+    parts.push(`观看 ${p.viewers} 台`);
+    if (p.rttMs) parts.push(`RTT ${p.rttMs}ms`);
+    if (p.limitation && p.limitation !== 'none') parts.push(`受限：${p.limitationText}`);
+    dom.sharePresets.classList.remove('hidden');
+  } else if (stats.viewer) {
+    const v = stats.viewer;
+    parts.push(`接收 ${v.fps} fps`);
+    if (v.width) parts.push(`${v.width}×${v.height}`);
+    if (v.packetsLost) parts.push(`丢包 ${v.packetsLost}`);
+    if (v.jitterMs) parts.push(`抖动 ${v.jitterMs}ms`);
+    dom.sharePresets.classList.add('hidden');
+  }
+
+  dom.shareStats.textContent = parts.length ? parts.join(' · ') : '—';
+}
+
+// 共享画面开着时每秒刷新一次链路指标
+setInterval(async () => {
+  if (!screenShare || dom.shareStage.classList.contains('hidden')) return;
+  if (!screenShare.isSharing && !screenShare.isWatching) {
+    if (dom.shareStats) dom.shareStats.textContent = '—';
+    return;
+  }
+  try {
+    renderShareStats(await screenShare.collectStats());
+  } catch {
+    /* 忽略 */
+  }
+}, 1000);
+
+// —— 对方操作的提示 ——
+
+let toastTimer = null;
+
+function showToast(text, ms = 4200) {
+  if (!dom.toast) return;
+  dom.toast.textContent = text;
+  dom.toast.classList.remove('hidden');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => dom.toast.classList.add('hidden'), ms);
+}
+
+/**
+ * 房间是共享的：对方换片或拖动进度会直接作用到你这边，
+ * 所以要明确告诉用户发生了什么、是谁做的，否则画面被悄悄换掉会很莫名其妙。
+ */
+function handleRemoteHint(state, meta) {
+  if (!meta || !meta.by || !myClientId) return;
+  if (meta.by === myClientId) return; // 自己做的操作不用提示
+
+  if (meta.action === 'set-media') {
+    const item = libraryItems.find((i) => i.id === state.mediaId);
+    showToast(`对方切到了《${item ? item.name : '另一个视频'}》`);
+    return;
+  }
+
+  if (meta.action === 'seek') {
+    showToast(`对方把进度跳到了 ${fmtDur(state.anchorPos)}`, 3000);
+  }
 }
 
 // —— 屏幕共享 ——
@@ -832,6 +908,17 @@ dom.shareSoundBtn.addEventListener('click', () => {
 
 dom.shareClose.addEventListener('click', closeShareStage);
 
+// 画质预设：流畅 / 均衡 / 清晰。共享中切换是实时的，不需要重新建立连接
+dom.sharePresets.addEventListener('click', async (event) => {
+  const btn = event.target.closest('button[data-preset]');
+  if (!btn || !screenShare) return;
+  await screenShare.applyPreset(btn.dataset.preset);
+  for (const b of dom.sharePresets.querySelectorAll('button')) {
+    b.classList.toggle('primary', b === btn);
+  }
+  showToast(`画质已切换为「${btn.textContent}」`, 2200);
+});
+
 dom.shareStageFs.addEventListener('click', () => {
   const video = dom.shareVideo;
 
@@ -994,6 +1081,14 @@ window.__vw = {
   /** 共享端实际生效的编码参数（帧率/码率上限），用于自检与测试 */
   describeShareSenders() {
     return screenShare ? screenShare.describeSenders() : Promise.resolve([]);
+  },
+  /** 切换画质预设（自动化测试用） */
+  applySharePreset(name) {
+    return screenShare ? screenShare.applyPreset(name) : Promise.resolve(null);
+  },
+  /** 采集实时链路指标（自动化测试用） */
+  collectShareStats() {
+    return screenShare ? screenShare.collectStats() : Promise.resolve(null);
   },
   get shareInfo() {
     return {

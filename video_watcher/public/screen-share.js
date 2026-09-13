@@ -12,6 +12,50 @@
  *   所以"采集端"必须在电脑上用 127.0.0.1 打开页面；普通局域网 IP 下按钮不会出现。
  */
 
+/**
+ * 画质预设。
+ *
+ * 关键区别在 degradationPreference：
+ *   · 游戏/视频要 maintain-framerate —— 宁可画面糊一点也要保证流畅
+ *   · 文档/代码要 maintain-resolution —— 宁可掉帧也要保证看得清
+ * 另外 scaleDownBy 可以主动降分辨率换码率，这在带宽有限时比让 WebRTC
+ * 自己乱降更可控。
+ */
+export const PRESETS = {
+  smooth: {
+    label: '流畅',
+    frameRate: 60,
+    maxBitrateMbps: 12,
+    degradationPreference: 'maintain-framerate',
+    scaleDownBy: 1.5,
+    contentHint: 'motion',
+  },
+  balanced: {
+    label: '均衡',
+    frameRate: 60,
+    maxBitrateMbps: 8,
+    degradationPreference: 'maintain-framerate',
+    scaleDownBy: 1,
+    contentHint: 'motion',
+  },
+  sharp: {
+    label: '清晰',
+    frameRate: 30,
+    maxBitrateMbps: 8,
+    degradationPreference: 'maintain-resolution',
+    scaleDownBy: 1,
+    contentHint: 'detail',
+  },
+};
+
+/** qualityLimitationReason 的中文解释——这一项直接回答"卡是不是网络的锅" */
+const LIMITATION_TEXT = {
+  none: '无',
+  bandwidth: '带宽不足（网络）',
+  cpu: '编码器跟不上（本机性能）',
+  other: '其他原因',
+};
+
 export class ScreenShare {
   constructor({ send, onRemoteStream, onRemoteEnded, onStatus }) {
     this.send = send;
@@ -32,15 +76,16 @@ export class ScreenShare {
     /** 刚开始共享的时刻：用来忽略抢跑回传的房间状态 */
     this.startedAt = 0;
 
-    /** 采集与编码参数（可由服务端配置覆盖） */
+    /** 采集与编码参数（可由服务端配置覆盖，之后也能在界面上切预设） */
     this.frameRate = 60;
     this.maxBitrate = 8_000_000;
-    /**
-     * 带宽不足时牺牲谁。
-     * 默认 'maintain-resolution'：共享屏幕主要是看内容（文档、网页、代码），
-     * 糊掉就没意义了；宁可帧率掉一点。
-     */
-    this.degradationPreference = 'maintain-resolution';
+    this.degradationPreference = 'maintain-framerate';
+    this.scaleDownBy = 1;
+    this.currentPreset = 'balanced';
+
+    /** 上一次采样的累计发送字节数，用来算实时码率 */
+    this.lastOutboundBytes = null;
+    this.lastStatsAt = 0;
   }
 
   /** 这台设备能不能采集屏幕（电脑上多半可以，手机基本不行） */
@@ -138,6 +183,10 @@ export class ScreenShare {
     this.stopLocal({ announce: false });
     this.localStream = stream;
     this.startedAt = Date.now();
+    // 码率基线：从共享那一刻开始累计，这样第一次采指标就能算出平均值，
+    // 否则要等两次采样才有差值，界面上第一秒会空着
+    this.lastOutboundBytes = 0;
+    this.lastStatsAt = Date.now();
 
     for (const track of stream.getTracks()) {
       track.addEventListener('ended', () => {
@@ -207,6 +256,9 @@ export class ScreenShare {
       if (!params.encodings || params.encodings.length === 0) params.encodings = [{}];
       params.encodings[0].maxFramerate = this.frameRate;
       params.encodings[0].maxBitrate = this.maxBitrate;
+      if (this.scaleDownBy > 1) {
+        params.encodings[0].scaleResolutionDownBy = this.scaleDownBy;
+      }
       params.degradationPreference = this.degradationPreference;
       await sender.setParameters(params);
     } catch {
@@ -225,6 +277,10 @@ export class ScreenShare {
           maxFramerate: params.encodings && params.encodings[0] ? params.encodings[0].maxFramerate : null,
           maxBitrate: params.encodings && params.encodings[0] ? params.encodings[0].maxBitrate : null,
           degradationPreference: params.degradationPreference || null,
+          scaleResolutionDownBy:
+            params.encodings && params.encodings[0]
+              ? params.encodings[0].scaleResolutionDownBy || 1
+              : 1,
         });
       } catch {
         out.push({ viewerId, error: true });
@@ -360,5 +416,132 @@ export class ScreenShare {
       this.stopLocal({ announce: false });
     }
     if (this.viewerPc) this.teardownViewer();
+  }
+
+  /** 应用一套画质预设；共享过程中也能实时切换（改的是编码参数，不需要重新协商） */
+  async applyPreset(name) {
+    const preset = PRESETS[name] || PRESETS.balanced;
+    this.currentPreset = PRESETS[name] ? name : 'balanced';
+    this.frameRate = preset.frameRate;
+    this.maxBitrate = preset.maxBitrateMbps * 1_000_000;
+    this.degradationPreference = preset.degradationPreference;
+    this.scaleDownBy = preset.scaleDownBy;
+
+    if (this.localStream) {
+      for (const track of this.localStream.getVideoTracks()) {
+        // 告诉编码器这是"运动画面"还是"细节画面"，浏览器的编码策略会跟着变
+        try {
+          track.contentHint = preset.contentHint;
+        } catch {
+          /* 某些浏览器不支持，忽略 */
+        }
+      }
+    }
+
+    for (const [, entry] of this.peers) {
+      for (const sender of entry.pc.getSenders()) {
+        if (sender.track && sender.track.kind === 'video') await this.tuneSender(sender);
+      }
+    }
+
+    this.onStatus({ sharing: true, preset: this.currentPreset, viewers: this.peers.size });
+    return preset;
+  }
+
+  /**
+   * 采集实时链路指标。
+   *
+   * 最有价值的是 qualityLimitationReason —— 它直接回答"卡是因为网络还是因为本机"：
+   *   bandwidth = 上行带宽不够（网络问题）
+   *   cpu       = 编码器跟不上（本机性能，或分辨率/帧率设太高）
+   */
+  async collectStats() {
+    const now = Date.now();
+    const result = { at: now, presenter: null, viewer: null };
+
+    if (this.peers.size > 0) {
+      let fps = 0;
+      let width = 0;
+      let height = 0;
+      let bytes = 0;
+      let lost = 0;
+      let rtt = 0;
+      let reason = 'none';
+
+      for (const [, entry] of this.peers) {
+        let report;
+        try {
+          report = await entry.pc.getStats();
+        } catch {
+          continue;
+        }
+        let out = null;
+        let rib = null;
+        report.forEach((s) => {
+          if (s.type === 'outbound-rtp' && s.kind === 'video') out = s;
+          if (s.type === 'remote-inbound-rtp' && s.kind === 'video') rib = s;
+        });
+        if (out) {
+          fps = Math.max(fps, out.framesPerSecond || 0);
+          width = Math.max(width, out.frameWidth || 0);
+          height = Math.max(height, out.frameHeight || 0);
+          bytes += out.bytesSent || 0;
+          const r = out.qualityLimitationReason;
+          if (r && r !== 'none') reason = r;
+        }
+        if (rib) {
+          lost += rib.packetsLost || 0;
+          rtt = Math.max(rtt, Math.round((rib.roundTripTime || 0) * 1000));
+        }
+      }
+
+      const prevBytes = this.lastOutboundBytes;
+      const prevAt = this.lastStatsAt;
+      let bitrateMbps = null;
+      if (prevBytes != null && prevAt && now > prevAt) {
+        bitrateMbps = ((bytes - prevBytes) * 8) / ((now - prevAt) / 1000) / 1e6;
+      }
+      this.lastOutboundBytes = bytes;
+      this.lastStatsAt = now;
+
+      result.presenter = {
+        viewers: this.peers.size,
+        fps,
+        width,
+        height,
+        bitrateMbps,
+        packetsLost: lost,
+        rttMs: rtt,
+        limitation: reason,
+        limitationText: LIMITATION_TEXT[reason] || reason,
+        preset: this.currentPreset,
+      };
+    }
+
+    if (this.viewerPc) {
+      let report = null;
+      try {
+        report = await this.viewerPc.getStats();
+      } catch {
+        report = null;
+      }
+      if (report) {
+        let inbound = null;
+        report.forEach((s) => {
+          if (s.type === 'inbound-rtp' && s.kind === 'video') inbound = s;
+        });
+        if (inbound) {
+          result.viewer = {
+            fps: inbound.framesPerSecond || 0,
+            width: inbound.frameWidth || 0,
+            height: inbound.frameHeight || 0,
+            packetsLost: inbound.packetsLost || 0,
+            jitterMs: Math.round((inbound.jitter || 0) * 1000),
+          };
+        }
+      }
+    }
+
+    return result;
   }
 }

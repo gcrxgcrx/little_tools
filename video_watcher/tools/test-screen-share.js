@@ -180,11 +180,12 @@ async function main() {
       `${vAfter.remoteWidth}x${vAfter.remoteHeight}`
     );
 
-    // 分辨率会被 WebRTC 按带宽自适应调整，所以不能断言"与源完全相等"，
-    // 只要求"没被砍得离谱"（后面第 9 节会测量稳态的帧率与分辨率）
+    // 刚建连时带宽估计还在爬升，分辨率会被临时压低（默认策略是保帧率，
+    // 也就是宁可先糊一点也要跟住帧率）。这里只要求"确实收到有效画面"，
+    // 稳态表现由第 9 节在等待带宽爬升之后测量。
     check(
-      '收到的分辨率达到源的 70% 以上',
-      vAfter.remoteWidth >= 640 * 0.7,
+      '收到有效分辨率（WebRTC 会按带宽自适应）',
+      vAfter.remoteWidth > 0,
       `${vAfter.remoteWidth}x${vAfter.remoteHeight}（源 640x360）`
     );
 
@@ -354,7 +355,8 @@ async function main() {
       Number.isFinite(sender.maxBitrate) && sender.maxBitrate >= 4_000_000,
       `${Math.round((sender.maxBitrate || 0) / 1e6)} Mbps`
     );
-    check('带宽不足时优先保分辨率', sender.degradationPreference != null,
+    check('默认策略是保帧率（游戏/视频优先流畅）',
+      sender.degradationPreference === 'maintain-framerate',
       String(sender.degradationPreference));
 
     await phoneSide
@@ -396,8 +398,57 @@ async function main() {
       `${steady.remoteWidth}x${steady.remoteHeight}（源 ${srcWidth}x720）`
     );
     check('接收端帧率高于 30', measuredFps > 30, `实测 ${measuredFps} fps`);
-    check('发送端声明的是保分辨率策略', sender.degradationPreference === 'maintain-resolution',
-      String(sender.degradationPreference));
+
+    console.log('\n9b) 画质预设与实时链路指标');
+
+    const presetBefore = await pcSide.evaluate(() => window.__vw.describeShareSenders());
+    check(
+      '默认使用保帧率策略（适合游戏/视频）',
+      presetBefore[0]?.degradationPreference === 'maintain-framerate',
+      String(presetBefore[0]?.degradationPreference)
+    );
+
+    await pcSide.evaluate(() => window.__vw.applySharePreset('smooth'));
+    await sleep(700);
+    const smooth = await pcSide.evaluate(() => window.__vw.describeShareSenders());
+    check(
+      '「流畅」预设主动降分辨率换帧率',
+      smooth[0]?.scaleResolutionDownBy > 1,
+      `scaleResolutionDownBy=${smooth[0]?.scaleResolutionDownBy}`
+    );
+    check('「流畅」仍是保帧率', smooth[0]?.degradationPreference === 'maintain-framerate');
+
+    await pcSide.evaluate(() => window.__vw.applySharePreset('sharp'));
+    await sleep(700);
+    const sharp = await pcSide.evaluate(() => window.__vw.describeShareSenders());
+    check(
+      '「清晰」预设改为保分辨率（适合文档/代码）',
+      sharp[0]?.degradationPreference === 'maintain-resolution',
+      String(sharp[0]?.degradationPreference)
+    );
+
+    await pcSide.evaluate(() => window.__vw.applySharePreset('balanced'));
+    await sleep(2500);
+
+    // 第一次调用就能算码率（基线从共享开始累计），但仍再采一次以便观察稳定性
+    await pcSide.evaluate(() => window.__vw.collectShareStats());
+    await sleep(1200);
+    const stats = await pcSide.evaluate(() => window.__vw.collectShareStats());
+    check('共享端能采到实时链路指标', Boolean(stats && stats.presenter));
+    check('指标含发送帧率', Number.isFinite(stats?.presenter?.fps), `${stats?.presenter?.fps} fps`);
+    check(
+      '指标含实时码率',
+      Number.isFinite(stats?.presenter?.bitrateMbps),
+      `${stats?.presenter?.bitrateMbps?.toFixed?.(2)} Mbps`
+    );
+    check(
+      '指标含「受限原因」——用于判断卡顿是网络还是本机',
+      typeof stats?.presenter?.limitation === 'string',
+      `limitation=${stats?.presenter?.limitation}（${stats?.presenter?.limitationText}）`
+    );
+
+    const viewerStats = await phoneSide.evaluate(() => window.__vw.collectShareStats());
+    check('观看端能采到接收侧指标', Boolean(viewerStats && viewerStats.viewer), JSON.stringify(viewerStats?.viewer));
 
     console.log('\n10) 共享画面层有全屏入口');
     const fsInfo = await phoneSide.evaluate(() => ({

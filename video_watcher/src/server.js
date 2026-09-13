@@ -128,7 +128,7 @@ async function main() {
   });
 
   const room = new Room({
-    onChange: (state) => broadcastState(state),
+    onChange: (state, meta) => broadcastState(state, meta),
     resumeCountdownMs: config.bufferingResumeCountdownMs,
   });
 
@@ -339,8 +339,9 @@ async function main() {
     };
   }
 
-  function broadcastState(state) {
-    const message = JSON.stringify({ t: 'state', state: enrichState(state) });
+  function broadcastState(state, meta) {
+    // 把"是谁做的这个操作"一并广播出去，客户端据此给出"对方切到了 X"这类提示
+    const message = JSON.stringify({ t: 'state', state: enrichState(state), meta: meta || null });
     for (const client of room.clients.values()) {
       if (client.ws && client.ws.readyState === client.ws.OPEN) client.ws.send(message);
     }
@@ -474,6 +475,7 @@ async function main() {
           room.setMedia(item.id, durationSec, {
             startPos: resumePoint ? resumePoint.from : 0,
             savedPositionSec: resumePoint ? resumePoint.savedPositionSec : null,
+            by: id,
           });
           log(
             `${client.name} 选择播放: ${item.fileName}` +
